@@ -1,0 +1,69 @@
+
+[default]
+
+# With precalculated nodes we scale the travel time matrix by looking at average travel time of the original data
+# If the following parameter is None, then scaling is not used otherwise a following window in seconds is used
+window_time_matrix_scale = 0
+
+# synchronous batching period in seconds
+synchronous_batching_period = 30
+
+DEBUG = false
+
+# ************************************************************
+
+# **** Parameters for generation of simulation cases ****
+# Maximum allowed delay to the customers
+MaxWait = 300
+
+# Announcement or anticipation time for generating customer requests
+time_anticipate = 0.0
+
+# Starting offset from the given startdt
+start_offset = 60.0
+
+# Max range of electric vehicle (km)
+vehicle_range_battery = 183
+
+# Max capacity of battery of vehicle (kWh)
+max_battery_capacity = 27.2
+
+# Initial price per kWh of usage for an electric vehicle
+initial_price_per_kWh = 2
+
+# The minimum charge level in percentage at which a vehicle is allowed to leave the charging station
+minimim_charge_for_leaving_station = 98
+
+# The minimum percentage of fuel or charge after which it is compulsory for a vehicle to visit service station
+min_fuel_charge_percentage = 95
+
+# maximum charging capacity of the electric vehicle in kW (used for calculating charging time)
+max_charge_capacity = 11
+
+# Service Time at the gas station in minutes:
+gas_station_service_time = 5
+
+# vehicle mileage in km/L
+vehicle_km_per_litre = 27
+
+# vehicle gasoline max capacity (L)
+vehicle_max_capacity_gas = 40
+
+# file path for the service stations
+stations_file_path = ""
+
+# maximum number of times a follow up request considered inside optimization; None would mean as many times as possible.
+max_times_schreqs_opt = 1
+
+# how many times the unmatched requests are kept inside optimization before they get expired. The quick assignment
+#    based matching immediately make them expored after first try
+max_times_unmat_opt = 1
+
+# absolute path of the subzone file used for repositioning and real-time plots
+subzone_filepath = ""
+
+# **** General simulation configuration ****
+plot_length = 30  # the real time values of last plot_length minutes are plotted
+plotrate = 1   # The update rate for the real time plotting new value (simulation seconds)
+delay_acc_period = 60.0   # The real time plots delay is for the pickup delay in last delay_acc_period seconds
+real_time_fig_size = [12,8] # Figure size for the real time plots
