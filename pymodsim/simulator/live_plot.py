@@ -2,7 +2,7 @@ from datetime import timedelta
 from numpy import array
 from os.path import join
 from multiprocessing import Process
-from pymodsim.python_simulator.history import History
+from pymodsim.simulator.history import History
 import matplotlib.animation as animation
 import matplotlib.pyplot as plt
 import matplotlib.gridspec as gridspec
