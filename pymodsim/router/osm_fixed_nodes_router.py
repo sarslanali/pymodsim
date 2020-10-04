@@ -1,6 +1,6 @@
 from pandas import read_pickle
 from numpy import array
-from simulator.router import AbstractRouter, RouteElement
+from pymodsim.router import AbstractRouter, RouteElement
 from pandas import DataFrame
 from typing import Union
 

@@ -1,4 +1,4 @@
-from simulator.router.osm_fixed_nodes_router import FixedNodesRouter
+from pymodsim.router.osm_fixed_nodes_router import FixedNodesRouter
 from pandas import DataFrame, read_pickle
 from networkx import Graph, get_edge_attributes, get_node_attributes, to_numpy_array
 from networkx.relabel import convert_node_labels_to_integers
@@ -10,7 +10,7 @@ from numba import njit
 from tqdm.auto import tqdm
 import osmnx as ox
 from pyproj import Transformer
-from simulator.router import RouteElement
+from pymodsim.router import RouteElement
 
 
 @njit

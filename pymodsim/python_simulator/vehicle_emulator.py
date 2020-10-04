@@ -1,10 +1,10 @@
 import numpy as np
-from simulator.data_readers.implemented_simulation_classes import Point, MovingObject
+from pymodsim.data_readers.implemented_simulation_classes import Point, MovingObject
 from typing import List
-from simulator.router import RouteElement
+from pymodsim.router import RouteElement
 import typing as tp
 from datetime import timedelta
-from simulator.router import AbstractRouter
+from pymodsim.router import AbstractRouter
 from shapely.geometry import MultiLineString
 
 

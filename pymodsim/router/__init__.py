@@ -1,7 +1,7 @@
 import polyline
 from abc import abstractmethod, ABC
 from typing import Set, Optional, List, Tuple, Dict, Union
-from simulator.data_readers import simulation_classes as sc
+from pymodsim.data_readers import simulation_classes as sc
 from json import dumps
 from logging import getLogger
 from shapely.geometry import LineString

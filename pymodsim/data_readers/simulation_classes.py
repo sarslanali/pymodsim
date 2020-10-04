@@ -2,8 +2,8 @@ from copy import copy
 from itertools import chain
 from abc import abstractmethod, ABC
 from typing import Optional, Set, Tuple, Dict, List, Union
-from simulator import router
-from simulator import config
+from pymodsim import router
+from pymodsim import config
 
 
 class SimulationObject:

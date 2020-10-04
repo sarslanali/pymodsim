@@ -3,7 +3,7 @@ from collections import defaultdict
 import os
 from numpy import array
 from pickle import dump
-from simulator.data_readers import implemented_simulation_classes as isc
+from pymodsim.data_readers import implemented_simulation_classes as isc
 
 
 class History:

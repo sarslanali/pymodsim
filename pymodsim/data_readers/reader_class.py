@@ -7,16 +7,16 @@ Created on Apr 21, 2019
 from datetime import timedelta, datetime
 import os
 from pickle import dump, load
-from simulator.data_readers import implemented_simulation_classes as isc
+from pymodsim.data_readers import implemented_simulation_classes as isc
 from pandas import read_pickle, read_csv, DataFrame
 from tempfile import NamedTemporaryFile
 from os import remove
-from simulator.router import AbstractRouter
-from simulator.router.osm_fixed_nodes_router import FixedNodesRouter
-from simulator.router.osmnx_graph_router import OSMNxGraphRouter
-from simulator.router.osrm_async import OSRMRouter
+from pymodsim.router import AbstractRouter
+from pymodsim.router.osm_fixed_nodes_router import FixedNodesRouter
+from pymodsim.router.osmnx_graph_router import OSMNxGraphRouter
+from pymodsim.router.osrm_async import OSRMRouter
 from typing import Optional, List
-from simulator import config
+from pymodsim import config
 from dynaconf import Dynaconf
 
 

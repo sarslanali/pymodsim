@@ -1,11 +1,11 @@
-from simulator.router import _OSRMRouter, chunks
+from pymodsim.router import _OSRMRouter, chunks
 import requests
 from json import loads
 from urllib.parse import urljoin
 from polyline import decode as polyline_decode
 from typing import List, Tuple, Dict, Optional
-from simulator.data_readers.implemented_simulation_classes import Point
-from simulator.router import RouteElement
+from pymodsim.data_readers.implemented_simulation_classes import Point
+from pymodsim.router import RouteElement
 
 
 class OSRMRouter(_OSRMRouter):

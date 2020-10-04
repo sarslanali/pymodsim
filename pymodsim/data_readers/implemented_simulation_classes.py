@@ -1,4 +1,4 @@
-from simulator.data_readers.simulation_classes import *
+from pymodsim.data_readers.simulation_classes import *
 from logging import getLogger
 
 

@@ -1,4 +1,4 @@
-from simulator.data_readers import implemented_simulation_classes as isc
+from pymodsim.data_readers import implemented_simulation_classes as isc
 import typing as tp
 
 

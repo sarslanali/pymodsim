@@ -1,21 +1,21 @@
 from timeit import default_timer
 import logging
 from collections import defaultdict, OrderedDict
-from simulator.data_readers import implemented_simulation_classes as isc
-from simulator.python_simulator.vehicle_emulator import VehicleEmulator
+from pymodsim.data_readers import implemented_simulation_classes as isc
+from pymodsim.python_simulator.vehicle_emulator import VehicleEmulator
 from datetime import timedelta
 from copy import copy
 import numpy as np
-from simulator.data_readers.reader_class import DataReader
-from simulator.router import AbstractRouter
+from pymodsim.data_readers.reader_class import DataReader
+from pymodsim.router import AbstractRouter
 import typing as tp
 from tqdm.auto import tqdm
 from os import getcwd, path
-from simulator.general.file_functions import check_folder_name
-from simulator.python_simulator.assignment_algorithm import nearest_neighbour
-from simulator.config import Settings
-from simulator.python_simulator.history import History
-from simulator.general.file_functions import dump_dict_to_yml
+from pymodsim.general.file_functions import check_folder_name
+from pymodsim.python_simulator.assignment_algorithm import nearest_neighbour
+from pymodsim.config import Settings
+from pymodsim.python_simulator.history import History
+from pymodsim.general.file_functions import dump_dict_to_yml
 import os
 
 
@@ -172,7 +172,7 @@ class SimulatorClass(object):
 
         # Thread based logger
         if log_output is True:
-            from simulator.python_simulator.logger_setup import listener_process, worker_configurer
+            from pymodsim.python_simulator.logger_setup import listener_process, worker_configurer
             from threading import Thread
             from queue import Queue
 
@@ -183,7 +183,7 @@ class SimulatorClass(object):
 
         if live_plot is True:
             from multiprocessing.managers import SyncManager
-            from simulator.python_simulator.live_plot import LivePlot
+            from pymodsim.python_simulator.live_plot import LivePlot
 
             SyncManager.register("History", History)
             self._manager = SyncManager()
