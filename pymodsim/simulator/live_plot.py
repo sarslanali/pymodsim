@@ -6,9 +6,24 @@ from pymodsim.simulator.history import History
 import matplotlib.animation as animation
 import matplotlib.pyplot as plt
 import matplotlib.gridspec as gridspec
-from typing import List, Optional, Tuple
+from typing import Optional
 from geopandas import read_file as georeader
 from geopandas import geodataframe
+from pathlib import Path
+import cv2
+
+
+def make_movie_from_images(images_folder, fps, output_file, fourcc='h264'):
+    images_folder = Path(images_folder)
+    movie_file = str(Path(output_file))
+    images = list(images_folder.glob('**/*.jpg'))
+    frame = cv2.imread(str(images[0]))
+    height, width, layers = frame.shape
+    video = cv2.VideoWriter(movie_file, cv2.VideoWriter_fourcc(*fourcc), fps, (width, height))
+    for image in images:
+        video.write(cv2.imread(str(image)))
+    cv2.destroyAllWindows()
+    video.release()
 
 
 class LivePlot(Process):
@@ -73,6 +88,22 @@ class LivePlot(Process):
                 axes[3].scatter(electric_station_position[:, 1], electric_station_position[:, 0], s=25,
                                 marker = "x", label="Electric Station")
             axes[3].legend(loc="upper left")
+
+    def save_single_plot(self, datetime_stamp):
+        if self.fig is None:
+            self.fig, self.grid_spec, self.axes = self.generate_plot_axes()
+        [ax.clear() for ax in self.axes]
+        self.draw_plots()
+        folder_path = Path(self.animation_folder, "images")
+        if folder_path.exists() is False:
+            folder_path.mkdir()
+        file_name = "plot_{}.jpg".format(datetime_stamp.strftime("%d-%b-%Y %H-%M-%S"))
+        plt.savefig(str(folder_path.joinpath(file_name)), bbox_inches = 'tight')
+
+    def make_movie_from_images(self, fps):
+        folder_path = Path(self.animation_folder, "images")
+        movie_file = str(Path(self.animation_folder).joinpath("mod_movie.mp4"))
+        make_movie_from_images(folder_path, fps, movie_file)
 
     def __animate(self, i):
         [ax.clear() for ax in self.axes]

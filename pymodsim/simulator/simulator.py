@@ -16,6 +16,8 @@ from pymodsim.simulator.assignment_algorithm import nearest_neighbour
 from pymodsim.config import Settings
 from pymodsim.simulator.history import History
 from pymodsim.general.file_functions import dump_dict_to_yml
+from multiprocessing.managers import SyncManager
+from pymodsim.simulator.live_plot import LivePlot
 import os
 
 
@@ -118,7 +120,7 @@ class SimulatorClass(object):
         self.logger = logging.getLogger()
         self.results_folder = None
         self.history = None
-        self._graph_process = None
+        self._graph_process: tp.Optional[LivePlot] = None
         self._log_thread = None
         self._log_queue = None
         self._manager = None
@@ -143,8 +145,8 @@ class SimulatorClass(object):
         self.history.set_attrb_by_name("service_stations", self.service_stations_by_id)
         self.logger.info("Starting New Simulation with startdt: {}, enddt: {}".format(self.data_reader.startdt,
                                                                                       self.data_reader.enddt))
-        self.__main_simulation_loop(progress_bar)
-        self._end_simulation()
+        self.__main_simulation_loop(progress_bar, save_animation)
+        self._end_simulation(save_animation)
         if save_results is True:
             self.history.write_to_file(self.results_folder)
         return self.history
@@ -181,37 +183,40 @@ class SimulatorClass(object):
             self._log_thread.start()
             worker_configurer(self._log_queue)
 
-        if live_plot is True:
-            from multiprocessing.managers import SyncManager
-            from pymodsim.simulator.live_plot import LivePlot
-
+        if live_plot is True and save_animation is False:
             SyncManager.register("History", History)
             self._manager = SyncManager()
             self._manager.start()
             self.history = self._manager.History(self.settings.as_dict())
+        else:
+            self.history = History(self.settings.to_dict())
+
+        if live_plot is True or save_animation is True:
             plot_class = LivePlot if live_plot_class is None else live_plot_class
             if live_plot_class is None:
                 self._graph_process = plot_class(self.history, self.settings.as_dict(), self.results_folder,
                                                  save_animation)
-            self._graph_process.start()
-        else:
-            self.history = History(self.settings.to_dict())
+            if save_animation is False:
+                self._graph_process.start()
 
-    def _end_simulation(self):
+    def _end_simulation(self, save_animation):
         logger = logging.getLogger()
         logger.info("Ending Simulation")
         if self._log_thread is not None:
             logger.handlers = []
-            # Send sigal to logger for ending the while loop
+            # Send signal to logger for ending the while loop
             self._log_queue.put_nowait(None)
             self._log_thread.join()
 
-        if self._graph_process is not None:
+        if self._graph_process is not None and save_animation is False:
             self._graph_process.join()
             self.history = self.history._getvalue()
             self._manager.shutdown()
 
-    def __main_simulation_loop(self, progress_bar=True):
+        if save_animation is True:
+            self._graph_process.make_movie_from_images(60/self.settings.synchronous_batching_period)
+
+    def __main_simulation_loop(self, progress_bar, save_animation):
 
         def single_iteration():
             self.passed_timedelta += timedelta(seconds=self.settings.synchronous_batching_period)
@@ -238,6 +243,8 @@ class SimulatorClass(object):
             with tqdm(total=total_iterations) as pbar:
                 while True:
                     end_simulation = single_iteration()
+                    if save_animation is True:
+                        self._graph_process.save_single_plot(self.data_reader.actual_time)
                     pbar.update(1)
                     pbar.set_description(str(self.data_reader.actual_time))
                     post_dict = OrderedDict({"all_reqs": self.nr_all_reqs, "expired": self.expired_stw.count,
