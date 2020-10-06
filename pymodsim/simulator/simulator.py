@@ -125,14 +125,18 @@ class SimulatorClass(object):
         self._log_queue = None
         self._manager = None
 
-    def run(self, results_folder=None, live_plot=True, live_plot_class=None, save_animation=False, log_output=False,
-            save_results=True, progress_bar=True):
+    def run(self, results_folder=None, live_plot=True, live_plot_class=None, save_live_plot=False,
+            save_frames=False, log_output=False, save_results=True, progress_bar=True):
         """ Basic method for starting the simulation
 
         :param results_folder:  full path where simulation results are to be written
-        :param live_plot:       whether to plot realtime plot or not. Default is True
-        :param live_plot_class: A customized subclass of live_plot.LivePlot for plotting the data
-        :param save_animation:  If True, the real time plot can be saved as an mp4 movie. Default is False.
+        :param live_plot:       whether to plot realtime plot or not. A separate process is used for realtime plots.
+                                Default is True
+        :param save_live_plot:  save the live plot as movie instead of showing plots in realtime. The live_plot
+                                parameter must be True for it to work
+        :param save_frames:     save the frames of each time step and make movie from it at the end. It does not need
+                                separate process, and thus, can be used in jupyter notebook as well
+        :param live_plot_class: A customized subclass of LivePlot used for plotting data
         :param log_output:      If True, a log file in generated in the results folder. Default is False
         :param save_results:    Save results to files. Default is True.
         :param progress_bar:    print the tqdm based progress bar. Default True.
@@ -141,17 +145,17 @@ class SimulatorClass(object):
 
         if save_results is True:
             self.results_folder = self.__get_results_folder(results_folder)
-        self.initialize_run(live_plot, save_animation, log_output, live_plot_class)
+        self.initialize_run(live_plot, save_live_plot, log_output, live_plot_class, save_frames)
         self.history.set_attrb_by_name("service_stations", self.service_stations_by_id)
         self.logger.info("Starting New Simulation with startdt: {}, enddt: {}".format(self.data_reader.startdt,
                                                                                       self.data_reader.enddt))
-        self.__main_simulation_loop(progress_bar, save_animation)
-        self._end_simulation(save_animation)
+        self.__main_simulation_loop(progress_bar, save_frames)
+        self._end_simulation(live_plot, save_frames)
         if save_results is True:
             self.history.write_to_file(self.results_folder)
         return self.history
 
-    def initialize_run(self, live_plot, save_animation, log_output, live_plot_class):
+    def initialize_run(self, live_plot, save_live_plot, log_output, live_plot_class, save_frames):
         """ Initializes some of the settings dependent class attributes and required processes and threads """
 
         if self.settings.window_time_matrix_scale != 0:
@@ -183,23 +187,21 @@ class SimulatorClass(object):
             self._log_thread.start()
             worker_configurer(self._log_queue)
 
-        if live_plot is True and save_animation is False:
+        self.history = History(self.settings.to_dict())
+        plot_class = LivePlot if live_plot_class is None else live_plot_class
+        if live_plot is True:
             SyncManager.register("History", History)
             self._manager = SyncManager()
             self._manager.start()
             self.history = self._manager.History(self.settings.as_dict())
-        else:
-            self.history = History(self.settings.to_dict())
+            self._graph_process = plot_class(self.history, self.settings.as_dict(), self.results_folder,
+                                             save_live_plot)
+            self._graph_process.start()
+        elif save_frames is True:
+            self._graph_process = plot_class(self.history, self.settings.as_dict(), self.results_folder,
+                                             save_live_plot)
 
-        if live_plot is True or save_animation is True:
-            plot_class = LivePlot if live_plot_class is None else live_plot_class
-            if live_plot_class is None:
-                self._graph_process = plot_class(self.history, self.settings.as_dict(), self.results_folder,
-                                                 save_animation)
-            if save_animation is False:
-                self._graph_process.start()
-
-    def _end_simulation(self, save_animation):
+    def _end_simulation(self, live_plot, save_frames):
         logger = logging.getLogger()
         logger.info("Ending Simulation")
         if self._log_thread is not None:
@@ -207,16 +209,14 @@ class SimulatorClass(object):
             # Send signal to logger for ending the while loop
             self._log_queue.put_nowait(None)
             self._log_thread.join()
-
-        if self._graph_process is not None and save_animation is False:
+        if live_plot is True:
             self._graph_process.join()
             self.history = self.history._getvalue()
             self._manager.shutdown()
+        if save_frames is True:
+            self._graph_process.make_movie_from_images(2)
 
-        if save_animation is True:
-            self._graph_process.make_movie_from_images(60/self.settings.synchronous_batching_period)
-
-    def __main_simulation_loop(self, progress_bar, save_animation):
+    def __main_simulation_loop(self, progress_bar, save_frames):
 
         def single_iteration():
             self.passed_timedelta += timedelta(seconds=self.settings.synchronous_batching_period)
@@ -243,7 +243,7 @@ class SimulatorClass(object):
             with tqdm(total=total_iterations) as pbar:
                 while True:
                     end_simulation = single_iteration()
-                    if save_animation is True:
+                    if save_frames is True:
                         self._graph_process.save_single_plot(self.data_reader.actual_time)
                     pbar.update(1)
                     pbar.set_description(str(self.data_reader.actual_time))
