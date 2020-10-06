@@ -13,7 +13,7 @@ from pathlib import Path
 import cv2
 
 
-def make_movie_from_images(images_folder, fps, output_file, fourcc='h264'):
+def make_movie_from_images(images_folder, fps, output_file, fourcc='mp4v'):
     images_folder = Path(images_folder)
     movie_file = str(Path(output_file))
     images = list(images_folder.glob('**/*.jpg'))
@@ -102,7 +102,7 @@ class LivePlot(Process):
 
     def make_movie_from_images(self, fps):
         folder_path = Path(self.animation_folder, "images")
-        movie_file = str(Path(self.animation_folder).joinpath("mod_movie.mp4"))
+        movie_file = str(Path(self.animation_folder).joinpath("frames_movie.mp4"))
         make_movie_from_images(folder_path, fps, movie_file)
 
     def __animate(self, i):
