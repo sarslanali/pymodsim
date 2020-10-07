@@ -18,7 +18,7 @@ from pymodsim.simulator.history import History
 from pymodsim.general.file_functions import dump_dict_to_yml
 from multiprocessing.managers import SyncManager
 from pymodsim.simulator.live_plot import LivePlot
-import os
+import os, sys
 
 
 T = tp.TypeVar('T')
@@ -143,17 +143,23 @@ class SimulatorClass(object):
         :return:                History class object for the simulation
         """
 
-        if save_results is True:
-            self.results_folder = self.__get_results_folder(results_folder)
-        self.initialize_run(live_plot, save_live_plot, log_output, live_plot_class, save_frames)
-        self.history.set_attrb_by_name("service_stations", self.service_stations_by_id)
-        self.logger.info("Starting New Simulation with startdt: {}, enddt: {}".format(self.data_reader.startdt,
-                                                                                      self.data_reader.enddt))
-        self.__main_simulation_loop(progress_bar, save_frames)
-        self._end_simulation(live_plot, save_frames)
-        if save_results is True:
-            self.history.write_to_file(self.results_folder)
-        return self.history
+        try:
+            if save_results is True:
+                self.results_folder = self.__get_results_folder(results_folder)
+            self.initialize_run(live_plot, save_live_plot, log_output, live_plot_class, save_frames)
+            self.history.set_attrb_by_name("service_stations", self.service_stations_by_id)
+            self.logger.info("Starting New Simulation with startdt: {}, enddt: {}".format(self.data_reader.startdt,
+                                                                                          self.data_reader.enddt))
+            self.__main_simulation_loop(progress_bar, save_frames)
+            self._end_simulation(live_plot, save_frames)
+            if save_results is True:
+                self.history.write_to_file(self.results_folder)
+            return self.history
+        except Exception as e:
+            if logging.getLogger().hasHandlers() is True:
+                logging.getLogger().exception("An error occurred while running the simulator")
+            self._end_simulation(live_plot, save_frames)
+            raise e
 
     def initialize_run(self, live_plot, save_live_plot, log_output, live_plot_class, save_frames):
         """ Initializes some of the settings dependent class attributes and required processes and threads """
