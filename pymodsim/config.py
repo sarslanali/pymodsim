@@ -1,4 +1,5 @@
-from dynaconf import Dynaconf
+from dynaconf import Dynaconf, loaders
+from dynaconf.utils.boxing import DynaBox
 import pathlib
 import typing as tp
 from shutil import copyfile
@@ -44,6 +45,17 @@ class Settings(Dynaconf):
             getLogger().warning("Could not find settings files: {}".format(not_found))
             getLogger().warning("using files: {}".format(files))
         return files
+
+    def export_to_file(self, file_path):
+        """ Export the settings to a file
+
+        :param file_path:   path and name of the export file. The extensions be any out of
+                            .yaml, .toml, .ini, .json, .py
+        """
+
+        # generates a dict with all the keys for `development` env
+        data = self.as_dict()
+        loaders.write(file_path, DynaBox(data).to_dict(), env=self.current_env)
 
     @staticmethod
     def generate_default_settings_file(destination: tp.Optional[str] = None):
