@@ -15,7 +15,6 @@ from pymodsim.general.file_functions import check_folder_name
 from pymodsim.simulator.assignment_algorithm import nearest_neighbour
 from pymodsim.config import Settings
 from pymodsim.simulator.history import History
-from pymodsim.general.file_functions import dump_dict_to_yml
 from multiprocessing.managers import SyncManager
 from pymodsim.simulator.live_plot import LivePlot
 import os, sys
@@ -174,13 +173,12 @@ class SimulatorClass(object):
                 {station.ID: station for station in self.service_stations_list}
             self.stationary_by_ids.update(self.service_stations_by_id.copy())
 
-        parameter_dict = OrderedDict([("startdt", str(self.data_reader.startdt)),
-                                      ("enddt", str(self.data_reader.enddt)),
-                                      ("DataFile", self.data_reader.data_file_path),
-                                      ("Simulator Settings", self.settings.as_dict())
-                                      ])
         if self.results_folder is not None:
-            dump_dict_to_yml(os.path.join(self.results_folder, "simulator_settings.yml"), parameter_dict)
+            self.settings.update({"startdt": str(self.data_reader.startdt),
+                                  "enddt": str(self.data_reader.enddt),
+                                  "data_file": self.data_reader.data_file_path,
+                                  "nr_cars": self.nr_cars})
+            self.settings.export_to_file(os.path.join(self.results_folder, "simulator_settings.yaml"))
 
         # Thread based logger
         if log_output is True:
