@@ -47,7 +47,8 @@ class Car(MovingObject):
         if settings.max_times_schreqs_opt is not None:
             for i, node in reversed(list(enumerate(car.path))):
                 stationary_object = node.stationary_object
-                if optimization_counts.get(stationary_object.ID, 0) >= settings.max_times_schreqs_opt:
+                if optimization_counts.get(stationary_object.ID, 0) >= settings.max_times_schreqs_opt \
+                        or isinstance(stationary_object, Visitable):
                     removed_nodes.extend(car.path[:i + 1])
                     car.orig = node.geographical_point
                     car.treq = node.reach_time
