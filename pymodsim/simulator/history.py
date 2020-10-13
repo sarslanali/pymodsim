@@ -4,6 +4,7 @@ import os
 from numpy import array
 from pickle import dump
 from pymodsim.data_readers import implemented_simulation_classes as isc
+import typing as tp
 
 
 class History:
@@ -18,7 +19,7 @@ class History:
         self.ALNSOprStatsList = []
         self.time_factor = defaultdict(list)
         self.vehicle_positions = None
-        self.service_stations = None
+        self.fixed_visitables: tp.Dict[str, tp.List[isc.Visitable]] = {}
         self.stop_animation = False
         self.recent_expired_requests = None
         self.vehicle_miles = None
@@ -31,14 +32,11 @@ class History:
     def set_attrb_by_name(self, name, value):
         setattr(self, name, value)
 
-    def get_stations_locations(self):
-        gas_stations, recharge_station = None, None
-        if self.service_stations:
-            gas_stations = array([station.location.latlon for station in self.service_stations.values()
-                                  if isinstance(station, isc.GasStation)])
-            recharge_station = array([station.location.latlon for station in self.service_stations.values()
-                                      if isinstance(station, isc.ElectricStation)])
-        return gas_stations, recharge_station
+    def get_fixed_visitable_locations(self):
+        loc_dict ={}
+        for name, visitable_list in self.fixed_visitables.items():
+            loc_dict[name] = array([x.latlon for v in visitable_list for x in v.locations])
+        return loc_dict
 
     def add_info(self, info_type_string, values_dict, append_to_not_present=True):
         info = getattr(self, info_type_string)

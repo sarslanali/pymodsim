@@ -223,14 +223,15 @@ class DataReader:
                 cars = load(f)
         return cars
 
-    @staticmethod
-    def generate_service_stations(full_path_of_csv) -> List[isc.ServiceStation]:
+    def generate_visitable_objects(self, full_path_of_csv) -> List[isc.Visitable]:
         csv_df = read_csv(full_path_of_csv, delimiter=',', sep=',', header=0)
+        if isinstance(self.router, OSMNxGraphRouter):
+            csv_df["nearest_osm_id"] = self.router.calculate_nearest_nodes(lats=csv_df["location_lat"].values,
+                                                                           lons=csv_df["location_lon"].values)
         service_stations = []
         for n, row in csv_df.iterrows():
             key = "ss"+str(n)
-            location = isc.FixedNodesPoint(row.location_lat, row.location_lon, key, key,
-                                           None, row.nearest_osm_id)
+            location = isc.FixedNodesPoint(row.location_lat, row.location_lon, key, key, None, row.nearest_osm_id)
             if row.type == "electric":
                 service_stations.append(isc.ElectricStation(location, key, row.vehicle_slots, row.prices,
                                                             row.charge_rate_max))

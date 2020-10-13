@@ -65,8 +65,7 @@ class SimulatorClass(object):
         self.carbyid: tp.Dict[str, isc.Car] = {car.ID: car for car in self.cars_list}
 
         # A car can belong to a single group at a time
-        self.cars_at_gas_stations: NamedSet[isc.MovingObject] = NamedSet(name="Vehicles at Gas Station")
-        self.cars_at_recharge_stations: NamedSet[isc.MovingObject] = NamedSet(name="Vehicles at Electric Station")
+        self.cars_at_visitables_dict: tp.Dict[str, NamedSet[isc.MovingObject]] = {}
         self.cars_repositioning: NamedSet[isc.MovingObject] = NamedSet(name="Repositioning Vehicles")
         self.cars_serving_customers: NamedSet[isc.MovingObject] = NamedSet(name="Vehicles Serving Customers")
         self.cars_idle_scheduled: NamedSet[isc.MovingObject] = NamedSet(self.cars_list, name="Idle Vehicles with Schedule")
@@ -82,9 +81,10 @@ class SimulatorClass(object):
                           "in_car_distance": car_key_dict.copy(),
                           "service_distance": car_key_dict.copy()}
 
-        # Attributes for tracking Service Stations
-        self.service_stations_by_id: tp.Dict[str, isc.Visitable] = {}
-        self.service_stations_list: tp.List[isc.Visitable] = []
+        # Attributes for tracking visitable objects, these objects are "time-invariant" meaning they don't get expired
+        # over time
+        self.visitables_by_id: tp.Dict[str, isc.Visitable] = {}
+        self.visitables_list: tp.List[isc.Visitable] = []
 
         # Attributes for keeping track of servable with time window objects
         self.stw_list: tp.List[isc.ServableTW] = []      # List to maintain order of generation
@@ -125,7 +125,8 @@ class SimulatorClass(object):
         self._manager = None
 
     def run(self, results_folder=None, live_plot=True, live_plot_class=None, save_live_plot=False,
-            save_frames=False, log_output=False, save_results=True, progress_bar=True):
+            save_frames=False, log_output=False, save_results=True, progress_bar=True, tqdm_position=0,
+            pre_bar_text=""):
         """ Basic method for starting the simulation
 
         :param results_folder:  full path where simulation results are to be written
@@ -146,10 +147,9 @@ class SimulatorClass(object):
             if save_results is True:
                 self.results_folder = self.__get_results_folder(results_folder)
             self.initialize_run(live_plot, save_live_plot, log_output, live_plot_class, save_frames)
-            self.history.set_attrb_by_name("service_stations", self.service_stations_by_id)
             self.logger.info("Starting New Simulation with startdt: {}, enddt: {}".format(self.data_reader.startdt,
                                                                                           self.data_reader.enddt))
-            self.__main_simulation_loop(progress_bar, save_frames)
+            self.__main_simulation_loop(progress_bar, save_frames, tqdm_position, pre_bar_text)
             self._end_simulation(live_plot, save_frames)
             if save_results is True:
                 self.history.write_to_file(self.results_folder)
@@ -165,13 +165,6 @@ class SimulatorClass(object):
 
         if self.settings.window_time_matrix_scale != 0:
             self.scale_factor_generator = self.data_reader.calculate_time_factor(self.settings.window_time_matrix_scale)
-
-        # Read the service stations (includes both gas and recharge stations
-        if self.settings.stations_file_path:
-            self.service_stations_list = self.data_reader.generate_service_stations(self.settings.stations_file_path)
-            self.service_stations_by_id: tp.Dict[str, isc.ServiceStation] = \
-                {station.ID: station for station in self.service_stations_list}
-            self.stationary_by_ids.update(self.service_stations_by_id.copy())
 
         if self.results_folder is not None:
             self.settings.update({"startdt": str(self.data_reader.startdt),
@@ -205,6 +198,19 @@ class SimulatorClass(object):
             self._graph_process = plot_class(self.history, self.settings.as_dict(), self.results_folder,
                                              save_live_plot)
 
+        # Read the fixed visitable objects that don't change during simulation
+        if self.settings.stations_file_path:
+            self.visitables_list = self.data_reader.generate_visitable_objects(self.settings.stations_file_path)
+            self.visitables_by_id: tp.Dict[str, isc.ServiceStation] = \
+                {visitable.ID: visitable for visitable in self.visitables_list}
+            visitable_dict = defaultdict(list)
+            for v in self.visitables_list:
+                visitable_dict[type(v).__name__].append(v)
+            self.cars_at_visitables_dict = {s: NamedSet(name="Vehicles at {}".format(s)) for s in
+                                            visitable_dict.keys()}
+            self.stationary_by_ids.update(self.visitables_by_id.copy())
+            self.history.set_attrb_by_name("fixed_visitables", dict(visitable_dict))
+
     def _end_simulation(self, live_plot, save_frames):
         logger = logging.getLogger()
         logger.info("Ending Simulation")
@@ -220,7 +226,7 @@ class SimulatorClass(object):
         if save_frames is True:
             self._graph_process.make_movie_from_images(2)
 
-    def __main_simulation_loop(self, progress_bar, save_frames):
+    def __main_simulation_loop(self, progress_bar, save_frames, tqdm_position, pre_bar_text):
 
         def single_iteration():
             self.passed_timedelta += timedelta(seconds=self.settings.synchronous_batching_period)
@@ -244,13 +250,13 @@ class SimulatorClass(object):
             self.refactor_time_matrix()
 
         if progress_bar is True:
-            with tqdm(total=total_iterations) as pbar:
+            with tqdm(total=total_iterations, position=tqdm_position) as pbar:
                 while True:
                     end_simulation = single_iteration()
                     if save_frames is True:
                         self._graph_process.save_single_plot(self.data_reader.actual_time)
                     pbar.update(1)
-                    pbar.set_description(str(self.data_reader.actual_time))
+                    pbar.set_description(str(pre_bar_text) + "_" + str(self.data_reader.actual_time))
                     post_dict = OrderedDict({"all_reqs": self.nr_all_reqs, "expired": self.expired_stw.count,
                                              "fulfilled": self.fulfilled_stw.count, "scheduled": len(self.scheduled_stw),
                                              "serving": len(self.serving_stw), "idle_cars": len(self.cars_idle)})
@@ -329,10 +335,9 @@ class SimulatorClass(object):
                     self.__mark_car(car, self.cars_idle_scheduled)
                 else:
                     self.__mark_car(car, self.cars_idle)
-            elif isinstance(car.serving_node.stationary_object, isc.ElectricStation):
-                self.__mark_car(car, self.cars_at_recharge_stations)
-            elif isinstance(car.serving_node.stationary_object, isc.GasStation):
-                self.__mark_car(car, self.cars_at_gas_stations)
+            elif isinstance(car.serving_node.stationary_object, isc.Visitable):
+                st_object = car.serving_node.stationary_object
+                self.__mark_car(car, self.cars_at_visitables_dict[type(st_object).__name__])
             elif isinstance(car.serving_node.stationary_object, isc.CustomerRequest):
                 self.__mark_car(car, self.cars_serving_customers)
             elif isinstance(car.serving_node.stationary_object, isc.RepositioningRequest):
@@ -514,21 +519,20 @@ class SimulatorClass(object):
         self.veh_total_empty_distance = sum(car.empty_distance_covered for car in self.carbyid.values())
 
         # Record the data for later plots
-        self.history.add_info("realtime_info",
-                                {"TimeDelta": str(self.passed_timedelta),
-                                 "ActualTime": str(self.data_reader.actual_time),
-                                 "ScheduledReqs": len(self.scheduled_stw),
-                                 "ServingReqs": len(self.serving_stw),
-                                 "ExpiredReqs": self.expired_stw.count,
-                                 "UnscheduledReqs": len(self.unscheduled_stw),
-                                 "TotalReqs": self.nr_all_reqs,
-                                 "ServiceStationVehicles":
-                                     len(self.cars_at_recharge_stations.union(self.cars_at_gas_stations)),
-                                 "ServiceVehicleDistance": self.veh_service_distance,
-                                 "TotalEmptyDistance": self.veh_total_empty_distance,
-                                 "TotalVehicleDistance": self.veh_total_distance,
-                                 "PickUpDelay": np.mean(np.array(self.PickupDelay)) / 60 if self.PickupDelay else 0.0
-                                 })
+        real_time_info = {"TimeDelta": str(self.passed_timedelta),
+                          "ActualTime": str(self.data_reader.actual_time),
+                          "ScheduledReqs": len(self.scheduled_stw),
+                          "ServingReqs": len(self.serving_stw),
+                          "ExpiredReqs": self.expired_stw.count,
+                          "UnscheduledReqs": len(self.unscheduled_stw),
+                          "TotalReqs": self.nr_all_reqs,
+                          "ServiceVehicleDistance": self.veh_service_distance,
+                          "TotalEmptyDistance": self.veh_total_empty_distance,
+                          "TotalVehicleDistance": self.veh_total_distance,
+                          "PickUpDelay": np.mean(np.array(self.PickupDelay)) / 60 if self.PickupDelay else 0.0
+                          }
+        real_time_info.update({"{}Vehicles".format(key): len(named_set) for key, named_set in self.cars_at_visitables_dict.items()})
+        self.history.add_info("realtime_info", real_time_info)
 
         # Reset the accumulated delays
         self.PickupDelay = []
@@ -537,14 +541,9 @@ class SimulatorClass(object):
         self.history.set_attrb_by_name("vehicle_miles", self.car_miles)
 
         # Update vehicle locations
-        if len(self.service_stations_list) > 0 :
-            vehicle_positions = {car_set.name: [] for car_set in [self.cars_idle, self.cars_at_gas_stations,
-                                                                  self.cars_at_recharge_stations,
-                                                                  self.cars_serving_customers,
-                                                                  self.cars_repositioning]}
-        else:
-            vehicle_positions = {car_set.name: [] for car_set in [self.cars_idle, self.cars_serving_customers,
-                                                                  self.cars_repositioning]}
+        all_vehicle_sets = [self.cars_idle, self.cars_serving_customers, self.cars_repositioning] + \
+                           list(self.cars_at_visitables_dict.values())
+        vehicle_positions = {car_set.name: [] for car_set in all_vehicle_sets}
 
         [vehicle_positions[car_set.name].append(self.vehicle_emulator.car_locations[car].latlon)
             for car, car_set in self.car_label_dict.items()]
@@ -594,12 +593,12 @@ class SimulatorClass(object):
 
             if len(submitted_reqs) > 0:
                 t1 = default_timer()
-                stations = self.service_stations_list.copy()
-                time_dict, distance_dict = self.router.calculate_dict(submitted_cars, submitted_reqs + stations,
+                visitables = self.visitables_list.copy()
+                time_dict, distance_dict = self.router.calculate_dict(submitted_cars, submitted_reqs + visitables,
                                                                       factored_time=True)
                 time_matrix_calc_time = default_timer() - t1
-                paths_dict, skipped, info_dict = self.solve_assignment_problem(submitted_cars, submitted_reqs, stations,
-                                                                               time_dict, distance_dict)
+                paths_dict, skipped, info_dict = self.solve_assignment_problem(submitted_cars, submitted_reqs,
+                                                                               visitables, time_dict, distance_dict)
                 matched = set()
                 submitted_by_id = {r.ID: r for r in submitted_reqs}
                 for car, point_list in paths_dict.items():
@@ -619,7 +618,7 @@ class SimulatorClass(object):
 
     def solve_assignment_problem(self, cars: tp.List[isc.MovingObject],
                                  requests: tp.List[isc.ServableTW],
-                                 stations: tp.List[isc.Visitable],
+                                 visitables: tp.List[isc.Visitable],
                                  time_dict: dict, distance_dict: dict) -> (tp.Dict[isc.MovingObject,
                                                                                    tp.List[isc.Point]],
                                                                            tp.Set[isc.ServableTW],
@@ -631,7 +630,7 @@ class SimulatorClass(object):
 
         :param cars: list of moving objects
         :param requests: list of time bounded servable objects
-        :param stations: list of visitable stationary objects
+        :param visitables: list of visitable stationary objects
         :param time_dict: travel time dictionary in seconds with point.key as keys
         :param distance_dict: travel distances in meters with point.key as keys
         :return:

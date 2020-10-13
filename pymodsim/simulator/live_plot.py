@@ -60,7 +60,7 @@ class LivePlot(Process):
         realtimeDF = self.shared_history.get_realtime_info_df()
         start = realtimeDF.index[-1] - timedelta(minutes=self.settings_dict["PLOT_LENGTH"])
         realtimeDF = realtimeDF.between_time(start.time(), realtimeDF.index[-1].time())
-        realtimeDF.plot(y=["ServingReqs", "ScheduledReqs", "UnscheduledReqs", "ServiceStationVehicles"],
+        realtimeDF.plot(y=["ServingReqs", "ScheduledReqs", "UnscheduledReqs"],
                         ax=axes[0], legend=False)
         axes[0].set_title("# Expired = {}".format(realtimeDF["ExpiredReqs"].iloc[-1]))
         axes[0].legend(loc='lower left', bbox_to_anchor=(1.02, 0.5), frameon=False, prop={'size': 10})
@@ -79,14 +79,9 @@ class LivePlot(Process):
             if expired_reqs is not None:
                 expired_reqs = array(expired_reqs).reshape((-1, 2))
                 axes[3].scatter(expired_reqs[:, 1], expired_reqs[:, 0], s=4, label="expired request")
-
-            gas_station_position, electric_station_position = self.shared_history.get_stations_locations()
-            if gas_station_position is not None:
-                axes[3].scatter(gas_station_position[:, 1], gas_station_position[:, 0], s=25, marker = "+",
-                                label="Gas Station")
-            if electric_station_position is not None:
-                axes[3].scatter(electric_station_position[:, 1], electric_station_position[:, 0], s=25,
-                                marker = "x", label="Electric Station")
+            fixed_visitables = self.shared_history.get_fixed_visitable_locations()
+            for name, locations in fixed_visitables.items():
+                axes[3].scatter(locations[:, 1], locations[:, 0], s=25, marker="+", label=name)
             axes[3].legend(loc="upper left")
 
     def save_single_plot(self, datetime_stamp):
