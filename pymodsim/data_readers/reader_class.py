@@ -97,17 +97,18 @@ class DataReader:
                 nr += 1
         remove(temp.name)
 
-    def calculate_time_factor(self, window):
+    def calculate_time_factor(self, window, add_buffer=True):
         """ Calculates the time factor for scaling the travel time matrix. The factor is the ratio of mean actual
         trip time to the mean trip time calculated using fixed nodes of osrm
 
         :param window: the future requests window size in minutes based on which time factor is calculated
+        :param add_buffer: add additional time to start or end time according to window_size
         :return:
         """
         assert isinstance(self.router, FixedNodesRouter), " time factor can be only with FixedNodesRouter " \
                                                           "at the moment"
 
-        for df in self.generate_forecast_df(window):
+        for df in self.generate_forecast_df(window, add_buffer):
             mean_actual = (df["tpep_dropoff_datetime"] - df["tpep_pickup_datetime"]).mean().total_seconds()
             time, _ = self.router.calculate_from_osm_ids_pairs(df.pickup_node,
                                                                df.dropoff_node,
@@ -116,7 +117,7 @@ class DataReader:
             yield mean_actual / mean_time_router
         return
 
-    def generate_forecast_df(self, window_size, add_buffer=False) -> DataFrame:
+    def generate_forecast_df(self, window_size, add_buffer=True) -> DataFrame:
         """ Returns a generator that produces dataframe of the future rows of the data
 
         :param window_size: the window size in seconds for looking ahead compared to current time
