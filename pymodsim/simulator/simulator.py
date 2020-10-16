@@ -124,6 +124,18 @@ class SimulatorClass(object):
         self._log_queue = None
         self._manager = None
 
+    def __getstate__(self):
+        attrbs = vars(self).copy()
+        [attrbs.pop(x) for x in ["_manager", "_log_queue", "_log_thread", "_graph_process",
+                                 "history", "logger", "process_pool", "settings"]]
+        [attrbs.pop(x) for x, value in attrbs.items() if isinstance(value, types.GeneratorType)]
+        return attrbs
+
+    def __setstate__(self, state):
+        for name, value in state.items():
+            setattr(self, name, value)
+        self.settings = self.data_reader.settings
+
     def run(self, results_folder=None, live_plot=True, live_plot_class=None, save_live_plot=False,
             save_frames=False, log_output=False, save_results=True, progress_bar=True, tqdm_position=0,
             pre_bar_text=""):
