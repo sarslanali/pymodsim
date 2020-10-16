@@ -1,16 +1,17 @@
 from pymodsim.router.osm_fixed_nodes_router import FixedNodesRouter
 from pandas import DataFrame, read_pickle
-from networkx import Graph, get_edge_attributes, get_node_attributes, to_numpy_array
+from networkx import Graph, get_edge_attributes, get_node_attributes, to_numpy_array, read_gpickle, write_gpickle
 from networkx.relabel import convert_node_labels_to_integers
 import igraph as ig
 from osmnx import graph_to_gdfs
-from typing import Optional
+from typing import Optional, Union
 from numpy import empty, full, nan, uint16
 from numba import njit
 from tqdm.auto import tqdm
 import osmnx as ox
 from pyproj import Transformer
 from pymodsim.router import RouteElement
+from pathlib import Path
 
 
 @njit
@@ -56,8 +57,13 @@ def convert_to_igraph(graph: Graph):
 
 class OSMNxGraphRouter(FixedNodesRouter):
 
-    def __init__(self, osmnx_graph: Graph, missing_speed: float, constant_speed: Optional[float]=None,
-                 path_type:str = "shortest", straight_line_routes: bool = False):
+    def __init__(self, osmnx_graph: Optional[Graph] = None,
+                 missing_speed: Optional[float] = None,
+                 constant_speed: Optional[float] = None,
+                 path_type:str = "shortest",
+                 straight_line_routes: bool = False,
+                 save_folder: Union[Path, str] = "processed_osmnx_router_data",
+                 load_processed: bool = False):
         """ A Router class based on the osmnx networkx graph
 
         :param osmnx_graph:     osmnx networkx graph
@@ -65,31 +71,48 @@ class OSMNxGraphRouter(FixedNodesRouter):
         :param constant_speed:  a constant speed (kph) for all links
         :param path_type:       the type of path to use: "quickest" or "shortest
         :param straight_line_routes:    simulate on straight lines with osmnx based travel times.
+        :param save_folder:     folder for saving processed osmnx router data
+        :param load_processed:  Load processed graph data directly from save_folder
         """
 
         self.path_type: str = path_type
-        osmnx_graph = osmnx_graph.copy()
-        osmnx_graph = remove_not_reachable_nodes(osmnx_graph)
-        self.osmnx_graph = osmnx_graph.copy()
-        if not ox.is_crs_utm(osmnx_graph.graph["crs"]):
-            self.osmnx_graph = ox.projection.project_graph(self.osmnx_graph)
-        osmnx_graph = self._remove_multiple_edges(osmnx_graph)
-        self._assign_missing_speeds_in_graph(osmnx_graph, missing_speed, constant_speed)
+        osmnx_graph, self.osmnx_graph_utm = self._process_graph(osmnx_graph, missing_speed, constant_speed,
+                                                                save_folder, load_processed)
         self.graph_ig: ig.Graph = convert_to_igraph(osmnx_graph)
         self.osmid_to_inx: dict = {node: inx for inx, node in enumerate(osmnx_graph.nodes)}
         self.inx_to_osmid_dict: dict = {inx: node for inx, node in enumerate(osmnx_graph.nodes)}
         edges_df = graph_to_gdfs(osmnx_graph, nodes=False).set_index(['u', 'v'])
         self.edge_data_dict = edges_df[["geometry", "travel_time", "length"]].to_dict()
-        time_df, distance_df = self._calculate_time_distance_df(osmnx_graph)
-        # create the data projection function
+        time_df, distance_df = self._calculate_time_distance_df(osmnx_graph, save_folder)
         self.straight_line_routes = straight_line_routes
         super().__init__(time_df, distance_df)
 
-    def _calculate_time_distance_df(self, nx_graph: Graph):
+    def _process_graph(self, osmnx_graph, missing_speed, constant_speed, save_folder, load_processed):
+        if load_processed is False:
+            osmnx_graph = osmnx_graph.copy()
+            osmnx_graph.missing_speed = missing_speed
+            osmnx_graph.constant_speed = constant_speed
+            osmnx_graph = remove_not_reachable_nodes(osmnx_graph)
+            osmnx_graph = self._remove_multiple_edges(osmnx_graph)
+            self._assign_missing_speeds_in_graph(osmnx_graph, missing_speed, constant_speed)
+            if not Path(save_folder).exists():
+                Path(save_folder).mkdir()
+            osmnx_graph_utm = osmnx_graph
+            if not ox.is_crs_utm(osmnx_graph.graph["crs"]):
+                osmnx_graph_utm = ox.projection.project_graph(osmnx_graph)
+                write_gpickle(osmnx_graph_utm, Path(save_folder, "utm_graph.pickle"))
+                write_gpickle(osmnx_graph, Path(save_folder, "latlon_graph.pickle"))
+        else:
+            print("loading processed graphs from folder {}".format(save_folder))
+            osmnx_graph = read_gpickle(Path(save_folder, "latlon_graph.pickle"))
+            osmnx_graph_utm = read_gpickle(Path(save_folder, "utm_graph.pickle"))
+        return osmnx_graph, osmnx_graph_utm
+
+    def _calculate_time_distance_df(self, nx_graph: Graph, save_folder: Union[Path, str]):
 
         assert self.path_type in {"shortest", "quickest"}, "path type can only be shortest or quickest"
-        distance_path = "{}_distance_df.pickle".format(self.path_type)
-        time_path = "{}_time_df.pickle".format(self.path_type)
+        distance_path = Path(save_folder,"{}_distance_df.pickle".format(self.path_type))
+        time_path = Path(save_folder, "{}_time_df.pickle".format(self.path_type))
         node_names = list(nx_graph.nodes)
         try:
             distance_df = read_pickle(distance_path)
@@ -175,12 +198,12 @@ class OSMNxGraphRouter(FixedNodesRouter):
         return costs
 
     def calculate_nearest_nodes(self, points=None, lats=None, lons=None):
-        proj_transformer = Transformer.from_proj('epsg:4326', self.osmnx_graph.graph["crs"])
+        proj_transformer = Transformer.from_proj('epsg:4326', self.osmnx_graph_utm.graph["crs"])
         if points is not None:
             lats, lons = zip(*[pt.latlon for pt in points])
         # project to utm
         x, y = proj_transformer.transform(lats, lons)
-        return ox.geo_utils.get_nearest_nodes(self.osmnx_graph, x, y, method="kdtree")
+        return ox.geo_utils.get_nearest_nodes(self.osmnx_graph_utm, x, y, method="kdtree")
 
     def route_steps(self, origin_destination_tuples):
         if self.straight_line_routes is True:
