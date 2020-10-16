@@ -17,13 +17,12 @@ from pymodsim.router.osmnx_graph_router import OSMNxGraphRouter
 from pymodsim.router.osrm_async import OSRMRouter
 from typing import Optional, List
 from pymodsim import config
-from dynaconf import Dynaconf
 
 
 class DataReader:
 
     def __init__(self, data_file_path: str, router: AbstractRouter, startdt: str, enddt: Optional[str] = None,
-                 settings: Optional[Dynaconf] = None):
+                 settings: Optional[config.Settings] = None):
 
         """ A class for generating dynamic and static examples from given data file.
 
@@ -38,7 +37,7 @@ class DataReader:
         """
 
         self.data_file_path: str = data_file_path
-        self.settings: Dynaconf = config.global_settings.copy() if settings is None else settings
+        self.settings: config.Settings = config.global_settings.copy() if settings is None else settings
         # The new requests start to arrive after one minute of the start of simulation
         self.start_offset: timedelta = timedelta(seconds = self.settings.start_offset)
         self.startdt: datetime = datetime.strptime(startdt, '%Y-%m-%d %H:%M:%S')
