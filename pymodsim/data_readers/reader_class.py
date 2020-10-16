@@ -52,6 +52,19 @@ class DataReader:
     def set_enddt(self, enddt: str):
         self.enddt = datetime.strptime(enddt, '%Y-%m-%d %H:%M:%S')
 
+    def __getstate__(self):
+        attrbs = vars(self).copy()
+        attrbs.pop("settings")
+        attrbs["settings_files"] = self.settings.settings_file
+        attrbs["settings_dict"] = self.settings.as_dict()
+        return attrbs
+
+    def __setstate__(self, state):
+        self.settings = config.Settings(state.pop("settings_files"))
+        self.settings.update(state.pop("settings_dict"))
+        for name, value in state.items():
+            setattr(self, name, value)
+
     def update_time(self, delta_time: timedelta):
         self.actual_time = self.startdt + delta_time - self.start_offset
 
