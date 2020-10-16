@@ -49,6 +49,9 @@ class DataReader:
         self.router: AbstractRouter = router
         self.max_wait_time: float = self.settings.MaxWait
 
+    def set_enddt(self, enddt: str):
+        self.enddt = datetime.strptime(enddt, '%Y-%m-%d %H:%M:%S')
+
     def update_time(self, delta_time: timedelta):
         self.actual_time = self.startdt + delta_time - self.start_offset
 
