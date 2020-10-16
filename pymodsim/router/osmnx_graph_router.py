@@ -82,7 +82,6 @@ class OSMNxGraphRouter(FixedNodesRouter):
         self.edge_data_dict = edges_df[["geometry", "travel_time", "length"]].to_dict()
         time_df, distance_df = self._calculate_time_distance_df(osmnx_graph)
         # create the data projection function
-        self.proj_transformer: Transformer = Transformer.from_proj('epsg:4326', self.osmnx_graph.graph["crs"])
         self.straight_line_routes = straight_line_routes
         super().__init__(time_df, distance_df)
 
@@ -176,10 +175,11 @@ class OSMNxGraphRouter(FixedNodesRouter):
         return costs
 
     def calculate_nearest_nodes(self, points=None, lats=None, lons=None):
+        proj_transformer = Transformer.from_proj('epsg:4326', self.osmnx_graph.graph["crs"])
         if points is not None:
             lats, lons = zip(*[pt.latlon for pt in points])
         # project to utm
-        x, y = self.proj_transformer.transform(lats, lons)
+        x, y = proj_transformer.transform(lats, lons)
         return ox.geo_utils.get_nearest_nodes(self.osmnx_graph, x, y, method="kdtree")
 
     def route_steps(self, origin_destination_tuples):
