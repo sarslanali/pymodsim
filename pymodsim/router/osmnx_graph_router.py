@@ -63,7 +63,8 @@ class OSMNxGraphRouter(FixedNodesRouter):
                  path_type:str = "shortest",
                  straight_line_routes: bool = False,
                  save_folder: Union[Path, str] = "processed_osmnx_router_data",
-                 load_processed: bool = False):
+                 load_processed: bool = False,
+                 full_pickle: bool = False):
         """ A Router class based on the osmnx networkx graph
 
         :param osmnx_graph:     osmnx networkx graph
@@ -73,6 +74,7 @@ class OSMNxGraphRouter(FixedNodesRouter):
         :param straight_line_routes:    simulate on straight lines with osmnx based travel times.
         :param save_folder:     folder for saving processed osmnx router data
         :param load_processed:  Load processed graph data directly from save_folder
+        :param full_pickle:     Pickle complete router including computed time and distance matrices
         """
 
         self.path_type: str = path_type
@@ -85,7 +87,22 @@ class OSMNxGraphRouter(FixedNodesRouter):
         self.edge_data_dict = edges_df[["geometry", "travel_time", "length"]].to_dict()
         time_df, distance_df = self._calculate_time_distance_df(osmnx_graph, save_folder)
         self.straight_line_routes = straight_line_routes
+        self.full_pickle = full_pickle
+        self.save_folder = save_folder
         super().__init__(time_df, distance_df)
+
+    def __getstate__(self):
+        attrbs = vars(self).copy()
+        if self.full_pickle is False:
+            [attrbs.pop(x) for x in ["time_matrix", "distance_matrix"]]
+        return attrbs
+
+    def __setstate__(self, state):
+        for name, value in state.items():
+            setattr(self, name, value)
+        if self.full_pickle is False:
+            self.time_matrix, self.distance_matrix = self._calculate_time_distance_df(self.osmnx_graph_utm,
+                                                                                      self.save_folder)
 
     def _process_graph(self, osmnx_graph, missing_speed, constant_speed, save_folder, load_processed):
         if load_processed is False:
