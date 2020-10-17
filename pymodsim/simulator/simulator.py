@@ -138,6 +138,17 @@ class SimulatorClass(object):
                                          "logger", "process_pool"]]
         self.settings = self.data_reader.settings
 
+    @classmethod
+    def from_pickled(cls, filepath: tp.Union[str, Path]):
+        """ Creates the SimulatorClass from pickled file
+
+        :param filepath:    File path of the pickled file
+        """
+
+        with open(Path(filepath), 'rb') as f:
+            simulator: SimulatorClass = load(f)
+        return simulator
+
     def run(self, results_folder=None, live_plot=True, live_plot_class=None, save_live_plot=False,
             save_frames=False, log_output=False, save_results=True, progress_bar=True, tqdm_position=0,
             pre_bar_text=""):
