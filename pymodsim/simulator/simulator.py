@@ -263,6 +263,8 @@ class SimulatorClass(object):
     def _end_simulation(self, live_plot, save_frames):
         logger = logging.getLogger()
         logger.info("Ending Simulation")
+        self.history.set_attrb_by_name("stop_animation", True)
+        self.history.set_attrb_by_name("summary", self.get_summary_dict())
         if self._log_thread is not None:
             logger.handlers = []
             # Send signal to logger for ending the while loop
@@ -275,7 +277,17 @@ class SimulatorClass(object):
         if save_frames is True:
             self._graph_process.make_movie_from_images(2)
 
-    def __main_simulation_loop(self, progress_bar, save_frames, tqdm_position, pre_bar_text, resume_state):
+    def get_summary_dict(self):
+        return OrderedDict({"Total Vehicles": len(self.cars_list),
+                            "Total Reqs": self.nr_all_reqs,
+                            "Total Expired": self.expired_stw.count,
+                            "Total Served": self.fulfilled_stw.count,
+                            "Total Service Distance": self.veh_service_distance,
+                            "Total Empty Distance": self.veh_total_empty_distance,
+                            "Total Distance": self.veh_total_distance})
+
+    def __main_simulation_loop(self, progress_bar, save_frames, tqdm_position, pre_bar_text, resume_state,
+                               include_cooldown):
 
         def single_iteration():
             self.passed_timedelta += timedelta(seconds=self.settings.synchronous_batching_period)
@@ -713,17 +725,6 @@ class SimulatorClass(object):
             new_reqs = next(self.reqs_gen)
         except (StopIteration, RuntimeError):
             if len( self.scheduled_stw) == 0 and len(self.serving_stw) == 0:
-                self.history.set_attrb_by_name("stop_animation", True)
-                # Set the dictionary for final stats in
-                self.history.set_attrb_by_name("summary",
-                                               OrderedDict(
-                                                   {"Total Vehicles": len(self.cars_list),
-                                                    "Total Reqs": self.nr_all_reqs,
-                                                    "Total Expired": self.expired_stw.count,
-                                                    "Total Served": self.fulfilled_stw.count,
-                                                    "Total Service Distance": self.veh_service_distance,
-                                                    "Total Empty Distance": self.veh_total_empty_distance,
-                                                    "Total Distance": self.veh_total_distance}))
                 # Stop the simulation
                 return True
 
