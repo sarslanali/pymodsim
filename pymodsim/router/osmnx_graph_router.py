@@ -101,8 +101,8 @@ class OSMNxGraphRouter(FixedNodesRouter):
         for name, value in state.items():
             setattr(self, name, value)
         if self.full_pickle is False:
-            self.time_matrix, self.distance_matrix = self._calculate_time_distance_df(self.osmnx_graph_utm,
-                                                                                      self.save_folder)
+            time_matrix, distance_matrix = self._calculate_time_distance_df(self.osmnx_graph_utm, self.save_folder)
+            super().__init__(time_matrix, distance_matrix)
 
     def _process_graph(self, osmnx_graph, missing_speed, constant_speed, save_folder, load_processed):
         if load_processed is False:
