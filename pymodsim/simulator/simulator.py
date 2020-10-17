@@ -126,9 +126,9 @@ class SimulatorClass(object):
 
     def __getstate__(self):
         attrbs = vars(self).copy()
+        generators = [x for x, value in attrbs.items() if isinstance(value, types.GeneratorType)]
         [attrbs.pop(x) for x in ["_manager", "_log_queue", "_log_thread", "_graph_process",
-                                 "history", "logger", "process_pool", "settings"]]
-        [attrbs.pop(x) for x, value in attrbs.items() if isinstance(value, types.GeneratorType)]
+                                 "history", "logger", "process_pool", "settings"] + generators]
         return attrbs
 
     def __setstate__(self, state):
