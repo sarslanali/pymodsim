@@ -123,6 +123,7 @@ class SimulatorClass(object):
         self._log_thread = None
         self._log_queue = None
         self._manager = None
+        self.enddt_backup_path: tp.Optional[Path] = None
 
     def __getstate__(self):
         attrbs = vars(self).copy()
