@@ -134,6 +134,8 @@ class SimulatorClass(object):
     def __setstate__(self, state):
         for name, value in state.items():
             setattr(self, name, value)
+        [setattr(self,x, None) for x in ["_manager", "_log_queue", "_log_thread", "_graph_process",
+                                         "logger", "process_pool"]]
         self.settings = self.data_reader.settings
 
     def run(self, results_folder=None, live_plot=True, live_plot_class=None, save_live_plot=False,
