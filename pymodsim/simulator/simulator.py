@@ -18,6 +18,9 @@ from pymodsim.simulator.history import History
 from multiprocessing.managers import SyncManager
 from pymodsim.simulator.live_plot import LivePlot
 import os, sys
+from pickle import load, dump
+import types
+from pathlib import Path
 
 
 T = tp.TypeVar('T')
@@ -56,7 +59,7 @@ class SimulatorClass(object):
         # Setup the data reader and get the cars
         self.data_reader: DataReader = data_reader
         self.router: AbstractRouter = self.data_reader.router
-        self.reqs_gen = self.data_reader.dynamic_requests()
+        self.reqs_gen = None
         self.scale_factor_generator: tp.Optional[tp.Generator] = None
 
         # Cars
@@ -116,7 +119,7 @@ class SimulatorClass(object):
         self.passed_timedelta: tp.Optional[timedelta] = None
         self.vehicle_emulator: tp.Optional[VehicleEmulator] = None
 
-        self.logger = logging.getLogger()
+        self.logger = None
         self.results_folder = None
         self.history = None
         self._graph_process: tp.Optional[LivePlot] = None
@@ -165,7 +168,7 @@ class SimulatorClass(object):
 
     def run(self, results_folder=None, live_plot=True, live_plot_class=None, save_live_plot=False,
             save_frames=False, log_output=False, save_results=True, progress_bar=True, tqdm_position=0,
-            pre_bar_text=""):
+            pre_bar_text="", resume_state=False):
         """ Basic method for starting the simulation
 
         :param results_folder:  full path where simulation results are to be written
@@ -179,16 +182,15 @@ class SimulatorClass(object):
         :param log_output:      If True, a log file in generated in the results folder. Default is False
         :param save_results:    Save results to files. Default is True.
         :param progress_bar:    print the tqdm based progress bar. Default True.
+        :param resume_state:    Resume from last state
         :return:                History class object for the simulation
         """
 
         try:
             if save_results is True:
                 self.results_folder = self.__get_results_folder(results_folder)
-            self.initialize_run(live_plot, save_live_plot, log_output, live_plot_class, save_frames)
-            self.logger.info("Starting New Simulation with startdt: {}, enddt: {}".format(self.data_reader.startdt,
-                                                                                          self.data_reader.enddt))
-            self.__main_simulation_loop(progress_bar, save_frames, tqdm_position, pre_bar_text)
+            self.initialize_run(live_plot, save_live_plot, log_output, live_plot_class, save_frames, resume_state)
+            self.__main_simulation_loop(progress_bar, save_frames, tqdm_position, pre_bar_text, resume_state)
             self._end_simulation(live_plot, save_frames)
             if save_results is True:
                 self.history.write_to_file(self.results_folder)
@@ -199,11 +201,16 @@ class SimulatorClass(object):
             self._end_simulation(live_plot, save_frames)
             raise e
 
-    def initialize_run(self, live_plot, save_live_plot, log_output, live_plot_class, save_frames):
-        """ Initializes some of the settings dependent class attributes and required processes and threads """
-
+    def initialize_generator_functions(self, resume_state):
+        self.reqs_gen = self.data_reader.dynamic_requests()
+        if resume_state:
+            # Waste all the requests from startdt to current time
+            next(self.reqs_gen)
         if self.settings.window_time_matrix_scale != 0:
             self.scale_factor_generator = self.data_reader.calculate_time_factor(self.settings.window_time_matrix_scale)
+
+    def initialize_run(self, live_plot, save_live_plot, log_output, live_plot_class, save_frames, resume_state):
+        """ Initializes some of the settings dependent class attributes and required processes and threads """
 
         if self.results_folder is not None:
             self.settings.update({"startdt": str(self.data_reader.startdt),
@@ -222,6 +229,7 @@ class SimulatorClass(object):
             self._log_thread = Thread(target=listener_process, args=(self._log_queue, self.results_folder,))
             self._log_thread.start()
             worker_configurer(self._log_queue)
+        self.logger = logging.getLogger()
 
         self.history = History(self.settings.to_dict())
         plot_class = LivePlot if live_plot_class is None else live_plot_class
@@ -237,8 +245,10 @@ class SimulatorClass(object):
             self._graph_process = plot_class(self.history, self.settings.as_dict(), self.results_folder,
                                              save_live_plot)
 
+        self.initialize_generator_functions(resume_state)
+
         # Read the fixed visitable objects that don't change during simulation
-        if self.settings.stations_file_path:
+        if self.settings.stations_file_path and resume_state is False:
             self.visitables_list = self.data_reader.generate_visitable_objects(self.settings.stations_file_path)
             self.visitables_by_id: tp.Dict[str, isc.ServiceStation] = \
                 {visitable.ID: visitable for visitable in self.visitables_list}
@@ -265,7 +275,7 @@ class SimulatorClass(object):
         if save_frames is True:
             self._graph_process.make_movie_from_images(2)
 
-    def __main_simulation_loop(self, progress_bar, save_frames, tqdm_position, pre_bar_text):
+    def __main_simulation_loop(self, progress_bar, save_frames, tqdm_position, pre_bar_text, resume_state):
 
         def single_iteration():
             self.passed_timedelta += timedelta(seconds=self.settings.synchronous_batching_period)
@@ -279,14 +289,22 @@ class SimulatorClass(object):
             self.update_real_time_data()
             return end_simulation
 
-        self.passed_timedelta = timedelta()
-        self.vehicle_emulator = VehicleEmulator(self.cars_list, self.passed_timedelta, self.router)
-        total_iterations = int((self.data_reader.enddt - self.data_reader.startdt).total_seconds() /
-                               self.settings.synchronous_batching_period)
-        # initial scaling of the travel time factor
-        if self.settings.window_time_matrix_scale != 0:
-            self.router.reset_time_factor()
-            self.refactor_time_matrix()
+        if resume_state is False:
+            self.logger.info("Starting new simulation with startdt: {}, enddt: {}".format(self.data_reader.startdt,
+                                                                                          self.data_reader.enddt))
+            self.passed_timedelta = timedelta()
+            self.vehicle_emulator = VehicleEmulator(self.cars_list, self.passed_timedelta, self.router)
+            total_iterations = int((self.data_reader.enddt - self.data_reader.startdt).total_seconds() /
+                                   self.settings.synchronous_batching_period)
+            # initial scaling of the travel time factor
+            if self.settings.window_time_matrix_scale != 0:
+                self.router.reset_time_factor()
+                self.refactor_time_matrix()
+        else:
+            self.logger.info("Resuming simulation from time: {} to enddt: {}".format(self.data_reader.actual_time,
+                                                                                     self.data_reader.enddt))
+            total_iterations = int((self.data_reader.enddt - self.data_reader.actual_time).total_seconds() /
+                                   self.settings.synchronous_batching_period)
 
         if progress_bar is True:
             with tqdm(total=total_iterations, position=tqdm_position) as pbar:
