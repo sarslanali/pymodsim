@@ -149,6 +149,19 @@ class SimulatorClass(object):
             simulator: SimulatorClass = load(f)
         return simulator
 
+    def _create_backup(self):
+        """ Creates backup of the current state in the results folder
+        :return: filename of the backup file
+        """
+
+        folder = Path(self.results_folder, "backups")
+        if not folder.exists():
+            folder.mkdir()
+        filename = "simulator_backup_{}.pickle".format(self.data_reader.actual_time.strftime("%Y-%m-%d %H-%M-%S"))
+        with open(Path(folder, filename), "wb") as f:
+            dump(self, f)
+        return Path(folder, filename)
+
     def run(self, results_folder=None, live_plot=True, live_plot_class=None, save_live_plot=False,
             save_frames=False, log_output=False, save_results=True, progress_bar=True, tqdm_position=0,
             pre_bar_text=""):
@@ -278,6 +291,8 @@ class SimulatorClass(object):
             with tqdm(total=total_iterations, position=tqdm_position) as pbar:
                 while True:
                     end_simulation = single_iteration()
+                    if self.enddt_backup_path is None and self.data_reader.actual_time >= self.data_reader.enddt:
+                        self.enddt_backup_path = self._create_backup()
                     if save_frames is True:
                         self._graph_process.save_single_plot(self.data_reader.actual_time)
                     pbar.update(1)
