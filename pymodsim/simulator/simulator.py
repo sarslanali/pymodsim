@@ -168,7 +168,7 @@ class SimulatorClass(object):
 
     def run(self, results_folder=None, live_plot=True, live_plot_class=None, save_live_plot=False,
             save_frames=False, log_output=False, save_results=True, progress_bar=True, tqdm_position=0,
-            pre_bar_text="", resume_state=False):
+            pre_bar_text="", resume_state=False, simulate_cooldown=True):
         """ Basic method for starting the simulation
 
         :param results_folder:  full path where simulation results are to be written
@@ -183,6 +183,8 @@ class SimulatorClass(object):
         :param save_results:    Save results to files. Default is True.
         :param progress_bar:    print the tqdm based progress bar. Default True.
         :param resume_state:    Resume from last state
+        :param simulate_cooldown:    Finish already assigned trips at the end when all requests have been generated.
+                                This runs the simulation for more time than enddt to finish the lastly assigned trips.
         :return:                History class object for the simulation
         """
 
@@ -190,7 +192,8 @@ class SimulatorClass(object):
             if save_results is True:
                 self.results_folder = self.__get_results_folder(results_folder)
             self.initialize_run(live_plot, save_live_plot, log_output, live_plot_class, save_frames, resume_state)
-            self.__main_simulation_loop(progress_bar, save_frames, tqdm_position, pre_bar_text, resume_state)
+            self.__main_simulation_loop(progress_bar, save_frames, tqdm_position, pre_bar_text, resume_state,
+                                        simulate_cooldown)
             self._end_simulation(live_plot, save_frames)
             if save_results is True:
                 self.history.write_to_file(self.results_folder)
@@ -287,7 +290,7 @@ class SimulatorClass(object):
                             "Total Distance": self.veh_total_distance})
 
     def __main_simulation_loop(self, progress_bar, save_frames, tqdm_position, pre_bar_text, resume_state,
-                               include_cooldown):
+                               simulate_cooldown):
 
         def single_iteration():
             self.passed_timedelta += timedelta(seconds=self.settings.synchronous_batching_period)
@@ -322,8 +325,6 @@ class SimulatorClass(object):
             with tqdm(total=total_iterations, position=tqdm_position) as pbar:
                 while True:
                     end_simulation = single_iteration()
-                    if self.enddt_backup_path is None and self.data_reader.actual_time >= self.data_reader.enddt:
-                        self.enddt_backup_path = self._create_backup()
                     if save_frames is True:
                         self._graph_process.save_single_plot(self.data_reader.actual_time)
                     pbar.update(1)
@@ -334,6 +335,10 @@ class SimulatorClass(object):
                     if self.settings.DEBUG is True:
                         post_dict.update({"sim_delay": np.mean(np.array(list(self.simulation_delay.values())))})
                     pbar.set_postfix(post_dict)
+                    if self.enddt_backup_path is None and self.data_reader.actual_time >= self.data_reader.enddt:
+                        self.enddt_backup_path = self._create_backup()
+                        if simulate_cooldown is False:
+                            break
                     if end_simulation is True:
                         break
         else:
