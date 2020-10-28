@@ -1,0 +1,15 @@
+requests>=2.18.4
+polyline>=1.4.0
+shapely>=1.7.0
+aiohttp>=3.6.2
+osmnx>=0.11.4
+pandas>=1.0.1
+networkx>=2.4
+numpy>=1.18.1
+numba>=0.48.0
+tqdm>=4.46.0
+pyproj>=2.5.0
+dynaconf>=3.0.0
+geopandas>=0.6.1
+yaml>=0.1.7
+pyyaml>=5.3
