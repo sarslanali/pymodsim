@@ -117,7 +117,7 @@ class DataReader:
         """ Calculates the time factor for scaling the travel time matrix. The factor is the ratio of mean actual
         trip time to the mean trip time calculated using fixed nodes of osrm
 
-        :param window: the future requests window size in minutes based on which time factor is calculated
+        :param window: the future requests window size in seconds based on which time factor is calculated
         :param add_buffer: add additional time to start or end time according to window_size
         :return:
         """
@@ -165,8 +165,8 @@ class DataReader:
         for r in reqs:
             direct_duration = time_matrix[r.orig.key, r.dest.key]
             direct_distance = dist_matrix[r.orig.key, r.dest.key]
-            r.dest_window = (r.orig_window[0] + timedelta(minutes = direct_duration),
-                             r.orig_window[1] + timedelta(minutes = direct_duration))
+            r.dest_window = (r.orig_window[0] + timedelta(seconds = direct_duration),
+                             r.orig_window[1] + timedelta(seconds = direct_duration))
 
     def _modify_reqs(self, reqs, start_time, cal_time_reach: bool = True):
         if cal_time_reach is True:
