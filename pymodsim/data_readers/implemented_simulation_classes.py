@@ -214,19 +214,23 @@ class CustomerRequest(PairedPointsServableTW):
         super().__init__(orig, dest, key, orig_window, dest_window)
 
     def reached_orig(self, moving_object, current_time, time_of_arrival, settings):
-        # wait for customer to come
+        # wait for customer to come and get on-board
         pickup_violation = time_of_arrival - self.orig_window[1]
         if pickup_violation > 0 and settings.window_time_matrix_scale is None:
             getLogger().warning("Origin window violated with difference of {:.2f}s for customer:{} and "
                                 "{}: {}".format(pickup_violation, time_of_arrival > self.orig_window[1], self,
                                                 type(moving_object).__name__, moving_object))
-        moving_object.nr_current_onboard += self.nr_passengers
-        return max(time_of_arrival, self.orig_window[0])
+        leave_time = max(time_of_arrival, self.orig_window[0]) + settings.boarding_time
+        if current_time >= leave_time:
+            moving_object.nr_current_onboard += self.nr_passengers
+        return leave_time
 
     def reached_dest(self, moving_object, current_time, time_of_arrival, settings):
-        moving_object.nr_current_onboard -= self.nr_passengers
-        # the car can immediately leave the point
-        return time_of_arrival
+        # the car can immediately leave the point after dropping the customer
+        leave_time = time_of_arrival + settings.disembarking_time
+        if current_time >= leave_time:
+            moving_object.nr_current_onboard -= self.nr_passengers
+        return leave_time
 
 
 class RepositioningRequest(SinglePointVisitable):

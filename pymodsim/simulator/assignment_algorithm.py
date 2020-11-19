@@ -2,7 +2,7 @@ from pymodsim.data_readers import implemented_simulation_classes as isc
 import typing as tp
 
 
-def nearest_neighbour(cars: tp.List[isc.Car], reqs: tp.List[isc.CustomerRequest], time_dict) \
+def nearest_neighbour(cars: tp.List[isc.Car], reqs: tp.List[isc.CustomerRequest], time_dict, settings) \
         -> tp.Dict[isc.MovingObject, tp.List[isc.Point]]:
     dropoff_time = {}
     result_dict = {}
@@ -29,8 +29,8 @@ def nearest_neighbour(cars: tp.List[isc.Car], reqs: tp.List[isc.CustomerRequest]
             if not dict_picktime:
                 break
             mincar, minreq = min(dict_picktime, key=dict_picktime.get)
-            picktime = dict_picktime[(mincar, minreq)]
-            droptime = max(picktime, minreq.orig_window[0]) + time_dict[minreq.orig.key, minreq.dest.key]
+            picktime = max(dict_picktime[(mincar, minreq)], minreq.orig_window[0]) + settings.boarding_time
+            droptime = picktime + time_dict[minreq.orig.key, minreq.dest.key] + settings.disembarking_time
             if mincar not in result_dict:
                 result_dict.update({mincar: [minreq.orig, minreq.dest]})
             else:

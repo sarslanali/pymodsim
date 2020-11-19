@@ -16,6 +16,12 @@ DEBUG = false
 # Maximum allowed delay to the customers
 MaxWait = 300
 
+# Boarding time of customers in seconds
+boarding_time = 45
+
+# Disembarking time of customers in seconds
+disembarking_time = 15
+
 # Announcement or anticipation time for generating customer requests
 time_anticipate = 0.0
 

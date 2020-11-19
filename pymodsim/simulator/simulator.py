@@ -717,7 +717,7 @@ class SimulatorClass(object):
                 - info_dict -               Dictionary of any statistical information that should be stored for analysis
         """
 
-        paths_dict = nearest_neighbour(cars, requests, time_dict)
+        paths_dict = nearest_neighbour(cars, requests, time_dict, self.settings)
         return paths_dict, set(), {}
 
     def update_odm_controller(self):
