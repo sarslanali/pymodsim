@@ -14,7 +14,7 @@ DEBUG = false
 
 # **** Parameters for generation of simulation cases ****
 # Maximum allowed delay to the customers
-MaxWait = 300
+MaxWait = 360
 
 # Boarding time of customers in seconds
 boarding_time = 45
