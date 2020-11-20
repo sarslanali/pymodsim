@@ -35,8 +35,10 @@ class Car(MovingObject):
                     # Ride Hailing scenario, make sure that the request is dropped
                     assert car.path[0].geographical_point == serving_object.dest
                     removed_nodes.append(car.path[0])
-                    car.orig = car.path[0].geographical_point
-                    car.treq = car.path[0].reach_time
+                    node = car.path[0]
+                    car.treq = serving_object.estimate_leave_time(car, node.reach_time, node.reach_time,
+                                                                  serving_object.dest, settings)
+                    car.orig = node.geographical_point
                     car.path = car.path[1:]
             else:
                 car.treq = serving_object.estimate_leave_time(car, current_time, car.serving_node.reach_time,
@@ -50,8 +52,10 @@ class Car(MovingObject):
                 if optimization_counts.get(stationary_object.ID, 0) >= settings.max_times_schreqs_opt \
                         or isinstance(stationary_object, Visitable):
                     removed_nodes.extend(car.path[:i + 1])
+                    car.treq = stationary_object.estimate_leave_time(car, node.reach_time, node.reach_time,
+                                                                     node.geographical_point, settings)
                     car.orig = node.geographical_point
-                    car.treq = node.reach_time
+                    assert car.treq is not None
                     break
         car.path = []
         car.serving_node = None
