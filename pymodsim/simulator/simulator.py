@@ -536,8 +536,8 @@ class SimulatorClass(object):
             covered_distance = 0
 
             # First store the necessary updates from last node served
-            if lastnode is not None and str(lastnode) not in self.simulation_delay:
-                self.simulation_delay.update({str(lastnode): node_reach_time - lastnode.reach_time})
+            if lastnode is not None and str(lastnode.geographical_point) not in self.simulation_delay:
+                self.simulation_delay.update({str(lastnode.geographical_point): node_reach_time - lastnode.reach_time})
                 if self.settings.DEBUG:
                     self.carhistroy[car].append((lastnode, node_reach_time, car.nr_current_onboard))
                 if abs(node_reach_time - lastnode.reach_time) > 1:
