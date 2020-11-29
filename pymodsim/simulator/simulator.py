@@ -205,10 +205,7 @@ class SimulatorClass(object):
             raise e
 
     def initialize_generator_functions(self, resume_state):
-        self.reqs_gen = self.data_reader.dynamic_requests()
-        if resume_state:
-            # Waste all the requests from startdt to current time
-            next(self.reqs_gen)
+        self.reqs_gen = self.data_reader.dynamic_requests(skip_initial=True)
         if self.settings.window_time_matrix_scale != 0:
             self.scale_factor_generator = self.data_reader.calculate_time_factor(self.settings.window_time_matrix_scale)
 

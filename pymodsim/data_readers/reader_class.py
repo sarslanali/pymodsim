@@ -88,16 +88,20 @@ class DataReader:
                                                                            lons=read_data["pickup_longitude"].values)
             read_data["dropoff_node"] = self.router.calculate_nearest_nodes(lats=read_data["dropoff_latitude"].values,
                                                                            lons=read_data["dropoff_longitude"].values)
-        return read_data
+        return read_data.reset_index(drop=True)
 
-    def _requests_generator(self) -> List[isc.CustomerRequest]:
+    def _requests_generator(self, skip_initial=False) -> List[isc.CustomerRequest]:
         read_data = self._read_data_file()
+        if skip_initial is True:
+            nr = len(read_data[read_data["tpep_pickup_datetime"] < self.actual_time + self.t_anticipate])
+            read_data = read_data[read_data["tpep_pickup_datetime"] >= self.actual_time + self.t_anticipate].copy()
+        else:
+            nr = 0
         temp = NamedTemporaryFile(delete=False)
         temp.close()
         read_data.to_csv(temp.name)
         read_data = read_csv(temp.name, chunksize=10000, parse_dates=["tpep_pickup_datetime"])
         wait_time = timedelta(seconds=self.max_wait_time)
-        nr = 0
         for df in read_data:
             for (_, row) in df.iterrows():
                 req_id = "r{0}".format(nr)
@@ -178,12 +182,12 @@ class DataReader:
                 r.dest_window = ((r.dest_window[0] - start_time).total_seconds(),
                                  (r.dest_window[1] - start_time).total_seconds())
 
-    def dynamic_requests(self, cal_time_reach: bool = True):
+    def dynamic_requests(self, cal_time_reach: bool = True, skip_initial=False):
         """
         Returns a generator that returns the newly generated requests based on the updated time
         """
 
-        req_gen = self._requests_generator()
+        req_gen = self._requests_generator(skip_initial)
         new_reqs = []
         start_time = self.startdt - self.start_offset
         for req in req_gen:
