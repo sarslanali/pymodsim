@@ -11,5 +11,6 @@ tqdm>=4.46.0
 pyproj>=2.5.0
 dynaconf>=3.0.0
 geopandas>=0.6.1
-yaml>=0.1.7
 pyyaml>=5.3
+pbr>=5.5.1
+setuptools>=45.2.0
