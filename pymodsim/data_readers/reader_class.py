@@ -89,7 +89,7 @@ class DataReader:
     def _read_data_file(self, startdt=None, enddt=None) -> DataFrame:
         _, file_ext = os.path.splitext(self.data_file_path)
         if file_ext == ".csv":
-            read_data = read_csv(self.data_file_path, parse_dates=["tpep_pickup_datetime", "tpep_dropoff_datetime"])
+            read_data = read_csv(self.data_file_path, parse_dates=["pickup_time", "dropoff_time"])
         elif file_ext == ".pkl":
             read_data = read_pickle(self.data_file_path)
         else:
@@ -97,10 +97,10 @@ class DataReader:
                 "Wrong formatted data file given. Provide .csv or pickled pandas dataframe having .pkl extension")
         startdt = self.startdt if startdt is None else startdt
         if startdt is not None:
-            read_data = read_data[read_data["tpep_pickup_datetime"] > startdt]
+            read_data = read_data[read_data["pickup_time"] > startdt]
         enddt = self.enddt if enddt is None else enddt
         if enddt is not None:
-            read_data = read_data[read_data["tpep_pickup_datetime"] < enddt]
+            read_data = read_data[read_data["pickup_time"] < enddt]
         if isinstance(self.router, OSMNxGraphRouter):
             read_data["pickup_node"] = self.router.calculate_nearest_nodes(lats=read_data["pickup_latitude"].values,
                                                                            lons=read_data["pickup_longitude"].values)
@@ -111,14 +111,14 @@ class DataReader:
     def _requests_generator(self, skip_initial=False) -> List[isc.CustomerRequest]:
         read_data = self._read_data_file()
         if skip_initial is True:
-            nr = len(read_data[read_data["tpep_pickup_datetime"] < self.actual_time + self.t_anticipate])
-            read_data = read_data[read_data["tpep_pickup_datetime"] >= self.actual_time + self.t_anticipate].copy()
+            nr = len(read_data[read_data["pickup_time"] < self.actual_time + self.t_anticipate])
+            read_data = read_data[read_data["pickup_time"] >= self.actual_time + self.t_anticipate].copy()
         else:
             nr = 0
         temp = NamedTemporaryFile(delete=False)
         temp.close()
         read_data.to_csv(temp.name)
-        read_data = read_csv(temp.name, chunksize=10000, parse_dates=["tpep_pickup_datetime"])
+        read_data = read_csv(temp.name, chunksize=10000, parse_dates=["pickup_time"])
         wait_time = timedelta(seconds=self.max_wait_time)
         for df in read_data:
             for (_, row) in df.iterrows():
@@ -147,7 +147,7 @@ class DataReader:
                                                           "at the moment"
 
         for df in self.generate_forecast_df(window, add_buffer):
-            mean_actual = (df["tpep_dropoff_datetime"] - df["tpep_pickup_datetime"]).mean().total_seconds()
+            mean_actual = (df["dropoff_time"] - df["pickup_time"]).mean().total_seconds()
             time, _ = self.router.calculate_from_osm_ids_pairs(df.pickup_node,
                                                                df.dropoff_node,
                                                                factored_time=False)
@@ -171,13 +171,13 @@ class DataReader:
         temp = NamedTemporaryFile(delete=False)
         temp.close()
         read_data.to_csv(temp.name)
-        read_data = read_csv(temp.name, chunksize=10000, parse_dates=["tpep_pickup_datetime", "tpep_dropoff_datetime"])
+        read_data = read_csv(temp.name, chunksize=10000, parse_dates=["pickup_time", "dropoff_time"])
         result = DataFrame()
         for df in read_data:
             result = result.append(df)
-            while result.iloc[-1]["tpep_pickup_datetime"] > self.actual_time:
-                result = result[result["tpep_pickup_datetime"] > self.actual_time]
-                yield result[result["tpep_pickup_datetime"] < self.actual_time + timedelta(seconds=window_size)]
+            while result.iloc[-1]["pickup_time"] > self.actual_time:
+                result = result[result["pickup_time"] > self.actual_time]
+                yield result[result["pickup_time"] < self.actual_time + timedelta(seconds=window_size)]
         os.remove(temp.name)
         return
 
