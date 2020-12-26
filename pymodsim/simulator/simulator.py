@@ -34,14 +34,12 @@ from pymodsim.data_readers.reader_class import DataReader
 from pymodsim.router import AbstractRouter
 import typing as tp
 from tqdm.auto import tqdm
-from os import getcwd, path
-from pymodsim.general.file_functions import check_folder_name
 from pymodsim.simulator.assignment_algorithm import nearest_neighbour
 from pymodsim.config import Settings
 from pymodsim.simulator.history import History
 from multiprocessing.managers import SyncManager
 from pymodsim.simulator.live_plot import LivePlot
-import os, sys
+import os
 from pickle import load, dump
 import types
 from pathlib import Path
@@ -386,8 +384,15 @@ class SimulatorClass(object):
 
     def __get_results_folder(self, results_folder):
         if results_folder is None:
-            results_folder = path.join(getcwd(), "Results", "result_" + str(self.nr_cars))
-        results_folder = check_folder_name(results_folder)
+            results_folder = Path("Results", "result_" + str(self.nr_cars))
+        # if summary file exist in folder, then use another folder
+        i = 0
+        while Path(results_folder, "summary.csv").exists():
+            i += 1
+            results_folder = results_folder.joinpath("_{}".format(i))
+        results_folder = Path(results_folder)
+        if not results_folder.exists():
+            results_folder.mkdir(parents=True)
         return results_folder
 
     def __mark_servable_wtw(self, servables: tp.Set[isc.ServableTW],
