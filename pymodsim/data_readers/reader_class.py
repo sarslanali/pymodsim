@@ -124,10 +124,10 @@ class DataReader:
             for (_, row) in df.iterrows():
                 req_id = "r{0}".format(nr)
                 pickloc = isc.FixedNodesPoint(row["pickup_latitude"], row["pickup_longitude"], req_id + "_p", req_id,
-                                              row["origin_zone"], row.get("pickup_node", None))
+                                              row.get("origin_zone", None), row.get("pickup_node", None))
                 droploc = isc.FixedNodesPoint(row["dropoff_latitude"], row["dropoff_longitude"], req_id + "_d", req_id,
-                                              row["destination_zone"], row.get("dropoff_node", None))
-                treq = row["tpep_pickup_datetime"]
+                                              row.get("destination_zone", None), row.get("dropoff_node", None))
+                treq = row["pickup_time"]
                 tpick_LA = treq + wait_time
                 nr_passenger = row["passenger_count"]
                 yield isc.CustomerRequest(pickloc, droploc, req_id, (treq, tpick_LA), (None, None),
