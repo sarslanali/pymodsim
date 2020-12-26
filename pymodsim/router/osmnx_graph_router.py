@@ -218,16 +218,18 @@ class OSMNxGraphRouter(FixedNodesRouter):
             speed_meter_per_second = data["maxspeed"] / 3.6
             data.update({"travel_time": data["length"] / speed_meter_per_second})
 
-    def _calculate_secondary_cost_matrix(self, nx_graph, primary_weight, secondary_weight, chunk_size=200):
+    def _calculate_secondary_cost_matrix(self, nx_graph, primary_weight, secondary_weight, block_size=200):
         graph_ig = self.graph_ig
         costs = full((len(graph_ig.vs), len(graph_ig.vs)), nan)
         nodes = list(range(len(graph_ig.vs)))
         edge_costs = to_numpy_array(nx_graph, weight=secondary_weight, multigraph_weight=min)
-        for i in tqdm(range(0, len(graph_ig.vs), chunk_size)):
-            chunk = nodes[i: i + chunk_size]
+        total_blocks = int(len(graph_ig.vs) / block_size) + 1
+        print("calculating matrices in {}x{} blocks of {} size each".format(total_blocks, total_blocks, block_size))
+        for i in tqdm(range(0, len(graph_ig.vs), block_size)):
+            chunk = nodes[i: i + block_size]
             inx = empty((len(chunk), len(nodes), len(nodes)), dtype=uint16)
             counts = empty((len(chunk), len(nodes)), dtype=uint16)
-            for j in tqdm(range(len(chunk))):
+            for j in range(len(chunk)):
                 source_node = chunk[j]
                 paths = graph_ig.get_shortest_paths(v=source_node, weights=primary_weight)
                 for k, path in enumerate(paths):
