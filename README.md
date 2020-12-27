@@ -4,7 +4,7 @@
 
 PyMoDSim is an easy to use agent-based simulator for mobility-on-demand (MOD) and general dynamic vehicle routing problems (DVRP). PyMoDSim reduces the time to test MOD optimization approaches, as the user does not have to spend time building the city network and the simulation framework from scratch. 
 
-# Main Features
+## Main Features
 The main features of PyMoDSim include:
 - Object-oriented design for easy usage and extension of MOD and DVRP scenarios
 - Simulation of vehicles via a abstract router classes. PyMoDSim provides implementations of router class for various paths types  
@@ -32,10 +32,20 @@ The main features of PyMoDSim include:
 [euclidean distance]: <https://en.wikipedia.org/wiki/Euclidean_distance>
 [geopandas]: <https://geopandas.org/>
 
-# Contributing
+
+## Installation
+
+Install OSMnx in a clean virtual environment:
+
+```
+pip install pymodsim
+```
+
+
+## Contributing
 
 Contributions to the project are welcome!
 
-# License
+##License
 
 GNU Lesser General Public License v3.0 - only
