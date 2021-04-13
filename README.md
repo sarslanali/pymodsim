@@ -12,11 +12,8 @@ The main features of PyMoDSim include:
     - City network using [OpenStreetMap] via [OSMnx] graph or [OSRM]
 - Ability to simulate multiple MOD scenarios including:
     - Automated vehicles (AVs) based ride sourcing
-    - AVs based ride sharing
     - Electric or Gasoline vehicles based MOD
     - Inclusion of electric or gas stations
-    - Combined MOD and freight services
-    - MOD with repositioning of idle vehicles
     - Easy adaptability to other scenarios, like inclusion of public transports
 - Realtime or offline plotting of the simulation on 2d map using [geopandas] library
     - Easily extendable plots by subclassing of realtime plots classes
@@ -31,6 +28,12 @@ The main features of PyMoDSim include:
 [haversine formula]: <https://en.wikipedia.org/wiki/Haversine_formula>
 [euclidean distance]: <https://en.wikipedia.org/wiki/Euclidean_distance>
 [geopandas]: <https://geopandas.org/>
+
+## Features Planned for future
+- Ability to simulate multiple MOD scenarios including:
+    - AVs based ride sharing
+    - Combined MOD and freight services
+    - MOD with repositioning of idle vehicles
 
 
 ## Installation
